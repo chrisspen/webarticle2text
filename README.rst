@@ -48,7 +48,7 @@ or as a standalone command line script:
 
     webarticle2text.py http://some/arbitrary/url
     
-Note, to use it from the command line, you'll need to ensure it's has execute
+Note, to use it from the command line, you'll need to ensure it has execute
 permission and is located in your PATH. On most platforms, this should
 automatically be done by setup.py.
 
@@ -60,3 +60,6 @@ Initial public release.
 
 1.2.0 - 2011.1.3
 Update to support Unicode.
+
+1.2.2 - 2011.12.17
+Cleaned up installation procedure and documentation and moved to github.com. 
