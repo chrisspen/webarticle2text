@@ -63,3 +63,6 @@ Update to support Unicode.
 
 1.2.2 - 2011.12.17
 Cleaned up installation procedure and documentation and moved to github.com. 
+
+1.2.3 - 2011.12.21
+Fixed encoding error when redirecting stdout. e.g. webarticle2text.py http://some/arbitrary/url > output.txt

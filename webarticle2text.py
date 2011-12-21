@@ -24,7 +24,7 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 """
-VERSION = (1, 2, 2)
+VERSION = (1, 2, 3)
 __version__ = '.'.join(map(str, VERSION))
 import os, sys, htmllib, formatter, StringIO, re, urllib, HTMLParser, time, htmlentitydefs
 try:
@@ -346,10 +346,10 @@ def extractFromURL(url, cache=False, cacheDir='_cache', verbose=False, encoding=
     assert isinstance(res, unicode)
 
     # Save extracted text to cache if enabled.
+    res = res.encode(encoding, 'ignore')
     if cache:
         fout = open(fn, 'w')
-        data = res.encode(encoding, 'ignore')
-        fout.write(data)
+        fout.write(res)
     return res
 
 def filter_remove_entities(text):
