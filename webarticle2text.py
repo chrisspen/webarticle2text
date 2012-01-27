@@ -123,7 +123,10 @@ class TextExtractor(HTMLParser.HTMLParser):
             self._ignore = False
             
         self._depth -= 1
-        self.lastN = self.path.pop()
+        if len(self.path):
+            self.lastN = self.path.pop()
+        else:
+            self.lastN = 0
         self.lastN += 1
         
     def handle_data(self, data, entity=False):
