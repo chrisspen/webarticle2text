@@ -22,10 +22,27 @@ Install dependencies:
 
 ::
 
-    sudo pip install pytidylib
-    sudo pip install chardet
+    sudo pip install pytidylib chardet
 
-Install the package:
+You may also need to install the tidylib system package, which you can get on Ubuntu 12.04 using:
+
+::
+
+    sudo apt-get install libtidy-0.99-0
+
+or on Fedora using:
+
+::
+
+    sudo yum install libtidy
+
+Finally, install the package using pip:
+
+::
+
+    sudo pip install -U https://github.com/chrisspen/webarticle2text/tarball/master
+
+or manually download and extract the tarball and run:
 
 ::
 
