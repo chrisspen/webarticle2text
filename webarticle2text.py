@@ -1,6 +1,6 @@
 #!/usr/bin/python
 """
-File: html2text.py
+File: webarticle2text.py
 
 Copyright (C) 2008  Chris Spencer (chrisspen at gmail dot com)
 
@@ -24,9 +24,18 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 """
-VERSION = (1, 2, 3)
+VERSION = (1, 2, 4)
 __version__ = '.'.join(map(str, VERSION))
-import os, sys, htmllib, formatter, StringIO, re, urllib, HTMLParser, time, htmlentitydefs
+import os
+import sys
+import time
+import formatter
+import htmlentitydefs
+import htmllib
+import HTMLParser
+import re
+import StringIO
+import urllib
 try:
     from tidylib import tidy_document
 except ImportError, e:
