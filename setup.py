@@ -9,7 +9,7 @@ setup(name='webarticle2text',
     license='LGPL License',
     py_modules=['webarticle2text'],
     scripts=['webarticle2text.py'],
-    install_requires=['tidylib', 'chardet'],
+    install_requires=['pytidylib', 'chardet'],
     classifiers = [
         "Programming Language :: Python",
         "Development Status :: 5 - Production/Stable",
