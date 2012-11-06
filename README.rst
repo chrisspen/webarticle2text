@@ -83,3 +83,6 @@ Cleaned up installation procedure and documentation and moved to github.com.
 
 1.2.3 - 2011.12.21
 Fixed encoding error when redirecting stdout. e.g. webarticle2text.py http://some/arbitrary/url > output.txt
+
+1.2.5 - 2012.11.5
+Added the option to specify user-agent header to use when requesting URLs.

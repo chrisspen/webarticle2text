@@ -4,3 +4,5 @@
 /.pydevproject
 /.settings
 /build
+/MANIFEST
+/dist

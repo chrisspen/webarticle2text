@@ -24,7 +24,7 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 """
-VERSION = (1, 2, 4)
+VERSION = (1, 2, 5)
 __version__ = '.'.join(map(str, VERSION))
 import os
 import sys
@@ -35,15 +35,7 @@ import htmllib
 import HTMLParser
 import re
 import StringIO
-import urllib
-try:
-    from tidylib import tidy_document
-except ImportError, e:
-    raise ImportError, "%s\nYou need to install pytidylib.\ne.g. sudo pip install pytidylib" % e
-try:
-    import chardet
-except ImportError, e:
-    raise ImportError, "%s\nYou need to install chardet.\ne.g. sudo pip install chardet" % e
+import urllib2
 
 def unescapeHTMLEntities(text):
    """Removes HTML or XML character references 
@@ -281,6 +273,12 @@ def tidyHTML(dirtyHTML):
     """
     Runs an arbitrary HTML string through Tidy.
     """
+    try:
+        from tidylib import tidy_document
+    except ImportError, e:
+        raise ImportError, \
+            ("%s\nYou need to install pytidylib.\n" + 
+             "e.g. sudo pip install pytidylib") % e
     options = {
         'output-xhtml':1,
         #add_xml_decl=1,#option in tidy but not pytidylib
@@ -292,7 +290,13 @@ def tidyHTML(dirtyHTML):
     html, errors = tidy_document(dirtyHTML, options=options)
     return html
 
-def extractFromURL(url, cache=False, cacheDir='_cache', verbose=False, encoding=None, filters=None):
+def extractFromURL(url,
+    cache=False,
+    cacheDir='_cache',
+    verbose=False,
+    encoding=None,
+    filters=None,
+    userAgent=None):
     """
     Extracts text from a URL.
 
@@ -314,6 +318,12 @@ def extractFromURL(url, cache=False, cacheDir='_cache', verbose=False, encoding=
     filters := string
         Comma-delimited list of filters to apply before parsing.
     """
+    try:
+        import chardet
+    except ImportError, e:
+        raise ImportError, \
+            ("%s\nYou need to install chardet.\n" + \
+             "e.g. sudo pip install chardet") % e
 
     # Load url from cache if enabled.
     if cache:
@@ -325,7 +335,12 @@ def extractFromURL(url, cache=False, cacheDir='_cache', verbose=False, encoding=
 
     # Otherwise download the url.
     if verbose: print 'Reading %s...' % url
-    html = urllib.urlopen(url).read()
+    headers = {}
+    if userAgent:
+        headers['User-agent'] = str(userAgent)
+    request = urllib2.Request(url=url, headers=headers)
+    response = urllib2.urlopen(request)
+    html = response.read()
 
     # If no encoding guess given, then attempt to determine encoding automatically.
     if not encoding:
@@ -387,6 +402,9 @@ if __name__ == '__main__':
     parser.add_option("-d", "--cacheDir", dest="cacheDir",
                       default='_cache',
                       help="the directory where cache files will be stored")
+    parser.add_option("-u", "--userAgent", dest="userAgent",
+                      default=None,
+                      help="The user-agent to use when requesting URLs.")
     parser.add_option("-f", "--filters", dest="filters",
                       default=None,
                       choices=get_filter_names(),
