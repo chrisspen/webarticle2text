@@ -92,7 +92,7 @@ class TextExtractor(HTMLParser.HTMLParser):
     def handle_starttag(self, tag, attrs): 
         ignore0 = self._ignore
         tag = tag.lower()
-        if tag in ('script','style','option','ul','li','legend','object','noscript','label'): # 'h1','h2','h3','h4','h5','h6',
+        if tag in ('script','style','option','ul','li','legend','object','noscript','label', 'footer', 'nav', 'aside'): # 'h1','h2','h3','h4','h5','h6',
             self._ignore = True
         attrd = dict(attrs)
         self._lasttag = tag.lower()
