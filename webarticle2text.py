@@ -24,7 +24,7 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 """
-VERSION = (1, 2, 5)
+VERSION = (1, 2, 6)
 __version__ = '.'.join(map(str, VERSION))
 import os
 import sys
@@ -296,7 +296,8 @@ def extractFromURL(url,
     verbose=False,
     encoding=None,
     filters=None,
-    userAgent=None):
+    userAgent=None,
+    timeout=5):
     """
     Extracts text from a URL.
 
@@ -339,7 +340,7 @@ def extractFromURL(url,
     if userAgent:
         headers['User-agent'] = str(userAgent)
     request = urllib2.Request(url=url, headers=headers)
-    response = urllib2.urlopen(request)
+    response = urllib2.urlopen(request, timeout=timeout)
     html = response.read()
 
     # If no encoding guess given, then attempt to determine encoding automatically.
