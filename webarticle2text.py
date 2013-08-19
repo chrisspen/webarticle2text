@@ -36,6 +36,7 @@ import HTMLParser
 import re
 import StringIO
 import urllib2
+import hashlib
 
 def unescapeHTMLEntities(text):
    """Removes HTML or XML character references 
@@ -330,7 +331,10 @@ def extractFromURL(url,
     if cache:
         if not os.path.isdir(cacheDir):
             os.makedirs(cacheDir, 0750)
-        fn = os.path.join(cacheDir, re.sub('[^a-zA-Z0-9\-_]+', '', url)+'.txt')
+        
+        h = hashlib.sha1()
+        h.update(url)
+        fn = os.path.join(cacheDir, "%s.txt" % h.hexdigest())
         if os.path.isfile(fn):
             return open(fn).read()
 
