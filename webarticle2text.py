@@ -329,7 +329,7 @@ def extractFromURL(url,
     # Load url from cache if enabled.
     if cache:
         if not os.path.isdir(cacheDir):
-            os.makedirs(cacheDir)
+            os.makedirs(cacheDir, 0750)
         fn = os.path.join(cacheDir, re.sub('[^a-zA-Z0-9\-_]+', '', url)+'.txt')
         if os.path.isfile(fn):
             return open(fn).read()
