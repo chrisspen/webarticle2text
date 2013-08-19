@@ -37,6 +37,7 @@ import re
 import StringIO
 import urllib2
 import hashlib
+import robotparser
 
 def unescapeHTMLEntities(text):
    """Removes HTML or XML character references 
@@ -326,6 +327,17 @@ def extractFromURL(url,
         raise ImportError, \
             ("%s\nYou need to install chardet.\n" + \
              "e.g. sudo pip install chardet") % e
+
+    scheme, netloc, url_path, query, fragment = urllib2.urlparse.urlsplit(url)
+
+    robotstxt_url = urllib2.urlparse.urlunsplit((scheme, netloc, '/robots.txt', '', ''))
+    robots_parser = robotparser.RobotFileParser(robotstxt_url)
+    robots_parser.read()
+    default_useragent = (v for k, v in urllib2.OpenerDirector().addheaders if k == "User-agent").next()
+
+    if not robots_parser.can_fetch(userAgent or default_useragent, url):
+        if verbose: print "Request denied by robots.txt"
+        return ''
 
     # Load url from cache if enabled.
     if cache:
