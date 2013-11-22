@@ -36,6 +36,8 @@ import HTMLParser
 import re
 import StringIO
 import urllib2
+import hashlib
+import robotparser
 
 def unescapeHTMLEntities(text):
    """Removes HTML or XML character references 
@@ -290,6 +292,80 @@ def tidyHTML(dirtyHTML):
     html, errors = tidy_document(dirtyHTML, options=options)
     return html
 
+def generate_key(s, pattern="%s.txt"):
+    """
+    Generates the cache key for the given string using the content in pattern
+    to format the output string
+    """
+    h = hashlib.sha1()
+    h.update(s)
+    return pattern % h.hexdigest()
+
+def cache_get(cache_dir, cache_key, default=None):
+    """
+    Returns the content of a cache item or the given default
+    """
+    filename = os.path.join(cache_dir, cache_key)
+    
+    if os.path.isfile(filename):
+        with open(filename, 'r') as f:
+            return f.read()
+    
+    return default
+
+def cache_set(cache_dir, cache_key, content):
+    """
+    Creates a new cache file in the cache directory
+    """
+    filename = os.path.join(cache_dir, cache_key)
+    
+    with open(filename, 'w') as f:
+        f.write(content)
+
+def cache_info(cache_dir, cache_key):
+    """
+    Returns the cache files mtime or 0 if it does not exists
+    """
+    filename = os.path.join(cache_dir, cache_key)
+    return os.path.getmtime(filename) if os.path.exists(filename) else 0
+
+def fetch(url, timeout=5, userAgent=None):
+    headers = {}
+    if userAgent:
+        headers['User-agent'] = str(userAgent)
+    request = urllib2.Request(url=url, headers=headers)
+    response = urllib2.urlopen(request, timeout=timeout)
+    return response.read()
+
+def check_robotstxt(url, useCache, cache_dir, userAgent=None):
+    scheme, netloc, url_path, query, fragment = urllib2.urlparse.urlsplit(url)
+    robotstxt_url = urllib2.urlparse.urlunsplit((scheme, netloc, '/robots.txt', '', ''))
+    
+    key = generate_key(robotstxt_url)
+
+    robots_parser = robotparser.RobotFileParser()
+    cached_content = cache_get(cache_dir, key) if useCache else ''
+
+    if not cached_content or cache_info(cache_dir, key) < (time.time() - 86400 * 7):
+        try:
+            cached_content = fetch(robotstxt_url, userAgent=userAgent)
+            if useCache:
+                cache_set(cache_dir, key, cached_content)
+        except urllib2.HTTPError as he:
+            # this block mimics the behaviour in the robotparser.read() method
+            if he.code in (401, 403):
+                robots_parser.disallow_all = True
+            elif he.code >= 400:
+                robots_parser.allow_all = True
+            else:
+                raise he
+            cached_content = ''
+
+    robots_parser.parse((x for x in cached_content.split('\n')))
+    default_useragent = (v for k, v in urllib2.OpenerDirector().addheaders if k == "User-agent").next()
+
+    return robots_parser.can_fetch(userAgent or default_useragent, url)
+
 def extractFromURL(url,
     cache=False,
     cacheDir='_cache',
@@ -297,7 +373,8 @@ def extractFromURL(url,
     encoding=None,
     filters=None,
     userAgent=None,
-    timeout=5):
+    timeout=5,
+    ignore_robotstxt=False):
     """
     Extracts text from a URL.
 
@@ -329,19 +406,21 @@ def extractFromURL(url,
     # Load url from cache if enabled.
     if cache:
         if not os.path.isdir(cacheDir):
-            os.makedirs(cacheDir)
-        fn = os.path.join(cacheDir, re.sub('[^a-zA-Z0-9\-_]+', '', url)+'.txt')
-        if os.path.isfile(fn):
-            return open(fn).read()
+            os.makedirs(cacheDir, 0750)
+
+        cache_key = generate_key(url)
+        cached_content = cache_get(cacheDir, cache_key)
+        if cached_content:
+            return cached_content
+
+    if not ignore_robotstxt:
+        if not check_robotstxt(url, cache, cacheDir, userAgent=userAgent):
+            if verbose: print "Request denied by robots.txt"
+            return ''
 
     # Otherwise download the url.
     if verbose: print 'Reading %s...' % url
-    headers = {}
-    if userAgent:
-        headers['User-agent'] = str(userAgent)
-    request = urllib2.Request(url=url, headers=headers)
-    response = urllib2.urlopen(request, timeout=timeout)
-    html = response.read()
+    html = fetch(url, timeout=timeout, userAgent=userAgent)
 
     # If no encoding guess given, then attempt to determine encoding automatically.
     if not encoding:
@@ -352,8 +431,8 @@ def extractFromURL(url,
     # Save raw contents to cache if enabled.
     if verbose: print 'Read %i characters.' % len(html)
     if cache:
-        fout = open(fn+'.raw', 'w')
-        fout.write(html)
+        raw_key = generate_key(url, "%s.raw")
+        cache_set(cacheDir, raw_key, html)
 
     # Apply filters.
     if filters:
@@ -378,8 +457,8 @@ def extractFromURL(url,
     # Save extracted text to cache if enabled.
     res = res.encode(encoding, 'ignore')
     if cache:
-        fout = open(fn, 'w')
-        fout.write(res)
+        cache_set(cacheDir, cache_key, res)
+
     return res
 
 def filter_remove_entities(text):
@@ -416,6 +495,10 @@ if __name__ == '__main__':
                       action='store_true',
                       default=False,
                       help="displays status messages")
+    parser.add_option('-i', '--ignore-robotstxt', dest="ignore_robotstxt",
+                        default=False, action="store_true",
+                        help="Ignore robots.txt when fetching the content")
+
     (options, args) = parser.parse_args()
 
     if len(args) < 1:
