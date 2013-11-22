@@ -367,7 +367,9 @@ def extractFromURL(url,
     if verbose: print 'Extracted %i characters.' % len(html)
     
     # Convert to Unicode.
-    html = unicode(html,encoding=encoding,errors='replace')
+    if not html:
+        return ''
+    html = unicode(html, encoding=encoding, errors='replace')
     
     # Extract text from HTML.
     res = extractFromHTML(html)
