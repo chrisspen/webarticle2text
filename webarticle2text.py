@@ -32,6 +32,7 @@ import time
 import formatter
 import htmlentitydefs
 import htmllib
+import httplib
 import HTMLParser
 import re
 import StringIO
@@ -335,7 +336,14 @@ def fetch(url, timeout=5, userAgent=None):
         headers['User-agent'] = str(userAgent)
     request = urllib2.Request(url=url, headers=headers)
     response = urllib2.urlopen(request, timeout=timeout)
-    return response.read()
+    try:
+        return response.read()
+    except httplib.IncompleteRead as e:
+        # http://stackoverflow.com/questions/14149100/incompleteread-using-httplib
+        # This should rarely happen, and is often the fault of the server
+        # sending a malformed response.
+        #TODO:just abandon all content and return '' instead?
+        return e.partial
 
 def check_robotstxt(url, useCache, cache_dir, userAgent=None):
     scheme, netloc, url_path, query, fragment = urllib2.urlparse.urlsplit(url)
