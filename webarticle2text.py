@@ -34,6 +34,7 @@ import htmlentitydefs
 import htmllib
 import httplib
 import HTMLParser
+import mimetypes
 import re
 import StringIO
 import urllib2
@@ -330,12 +331,30 @@ def cache_info(cache_dir, cache_key):
     filename = os.path.join(cache_dir, cache_key)
     return os.path.getmtime(filename) if os.path.exists(filename) else 0
 
-def fetch(url, timeout=5, userAgent=None):
+def fetch(url, timeout=5, userAgent=None, only_mime_types=None):
+    """
+    Retrieves the raw content of the URL.
+    """
     headers = {}
     if userAgent:
         headers['User-agent'] = str(userAgent)
     request = urllib2.Request(url=url, headers=headers)
     response = urllib2.urlopen(request, timeout=timeout)
+    # Return nothing of the content isn't one of the target mime-types.
+    if only_mime_types:
+        assert isinstance(only_mime_types, (tuple, list))
+        # Check for mimetype by looking at pattern in the URL.
+        # Not super accurate, but very fast.
+        ct, mt_encoding = mimetypes.guess_type(url)
+        # Then check for mimetype by actually requesting the resource and
+        # looking at the response.
+        # More accurate, but slower since we actually have to send a request.
+        if not ct:
+            response_info = response.info()
+            ct = (response_info.getheader('Content-Type') or '').split(';')[0]
+        #TODO:if still undefined, use magic.Magic(mime=True).from_file(url)?
+        if ct not in only_mime_types:
+            return
     try:
         return response.read()
     except httplib.IncompleteRead as e:
@@ -382,7 +401,8 @@ def extractFromURL(url,
     filters=None,
     userAgent=None,
     timeout=5,
-    ignore_robotstxt=False):
+    ignore_robotstxt=False,
+    only_mime_types=None):
     """
     Extracts text from a URL.
 
@@ -403,6 +423,10 @@ def extractFromURL(url,
         See http://docs.python.org/howto/unicode.html for further info on Python Unicode and encoding support.
     filters := string
         Comma-delimited list of filters to apply before parsing.
+    only_mime_types := list of strings
+        A list of mime-types to limit parsing to.
+        If the mime-type of the raw-content retrieved does not match
+        one of these, a value of None will be returned.
     """
     try:
         import chardet
@@ -410,6 +434,9 @@ def extractFromURL(url,
         raise ImportError, \
             ("%s\nYou need to install chardet.\n" + \
              "e.g. sudo pip install chardet") % e
+
+    if only_mime_types and isinstance(only_mime_types, basestring):
+        only_mime_types = only_mime_types.split(',')
 
     # Load url from cache if enabled.
     if cache:
@@ -428,7 +455,13 @@ def extractFromURL(url,
 
     # Otherwise download the url.
     if verbose: print 'Reading %s...' % url
-    html = fetch(url, timeout=timeout, userAgent=userAgent)
+    html = fetch(
+        url,
+        timeout=timeout,
+        userAgent=userAgent,
+        only_mime_types=only_mime_types)
+    if not html:
+        return ''
 
     # If no encoding guess given, then attempt to determine encoding automatically.
     if not encoding:
@@ -484,28 +517,31 @@ if __name__ == '__main__':
     parser = OptionParser(usage=usage)
     parser.add_option("-e", "--encoding", dest="encoding",
                       default=None,
-                      help="manually specifies the encoding to use when interpreting the url")
+                      help="Manually specifies the encoding to use when interpreting the url.")
     parser.add_option("-c", "--cache", dest="cache",
                       action='store_true',
                       default=False,
-                      help="stores and loads data from cache")
+                      help="Stores and loads data from cache.")
     parser.add_option("-d", "--cacheDir", dest="cacheDir",
                       default='_cache',
-                      help="the directory where cache files will be stored")
+                      help="The directory where cache files will be stored.")
     parser.add_option("-u", "--userAgent", dest="userAgent",
                       default=None,
                       help="The user-agent to use when requesting URLs.")
     parser.add_option("-f", "--filters", dest="filters",
                       default=None,
                       choices=get_filter_names(),
-                      help="a comma-delimited list of pre-processing filters to apply, one of [%s]" % '|'.join(get_filter_names()))
+                      help="A comma-delimited list of pre-processing filters to apply, one of [%s]." % '|'.join(get_filter_names()))
     parser.add_option("-v", "--verbose", dest="verbose",
                       action='store_true',
                       default=False,
-                      help="displays status messages")
+                      help="Displays status messages.")
     parser.add_option('-i', '--ignore-robotstxt', dest="ignore_robotstxt",
                         default=False, action="store_true",
-                        help="Ignore robots.txt when fetching the content")
+                        help="Ignore robots.txt when fetching the content.")
+    parser.add_option('-m', '--only-mime-types', dest="only_mime_types",
+                        default=None,
+                        help="A comma-delimited list of mime-types to limit retrieval to.")
 
     (options, args) = parser.parse_args()
 
