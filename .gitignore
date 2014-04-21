@@ -6,3 +6,5 @@
 /build
 /MANIFEST
 /dist
+/.py27env
+/.py3env

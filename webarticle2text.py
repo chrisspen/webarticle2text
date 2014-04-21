@@ -1,8 +1,8 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 """
 File: webarticle2text.py
 
-Copyright (C) 2008  Chris Spencer (chrisspen at gmail dot com)
+Copyright (C) 2008 Chris Spencer (chrisspen at gmail dot com)
 
 Attempts to locate and extract the largest cluster of text in a
 webpage. It does this by walking the DOM-tree, identifying all text
@@ -24,22 +24,50 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 """
-VERSION = (1, 3, 1)
+
+VERSION = (2, 0, 0)
 __version__ = '.'.join(map(str, VERSION))
+
 import os
 import sys
 import time
 import formatter
-import htmlentitydefs
-import htmllib
-import httplib
-import HTMLParser
+#import htmlentitydefs
+#import htmllib
+#import httplib
+#import HTMLParser
 import mimetypes
 import re
-import StringIO
-import urllib2
+#import StringIO
+#import urllib2
 import hashlib
-import robotparser
+#import robotparser
+
+# http://pythonhosted.org/six/
+# Note, you may need to install pip for python3 via:
+# sudo apt-get install python3-pip
+import six
+from six.moves import html_entities as htmlentitydefs
+from six.moves.html_parser import HTMLParser
+from six.moves import http_client as httplib
+try:
+    from six.moves import cStringIO as StringIO
+except ImportError:
+    from six import StringIO
+from six.moves.urllib import parse as urlparse
+from six.moves.urllib.error import HTTPError
+from six.moves.urllib.request import OpenerDirector, Request, urlopen
+from six.moves.urllib import robotparser
+
+u = six.u
+unicode = six.text_type
+unichr = six.unichr
+
+def get_unicode(text):
+    try:
+        text = unicode(text, 'utf-8')
+    except TypeError:
+        return text
 
 def unescapeHTMLEntities(text):
    """Removes HTML or XML character references 
@@ -68,11 +96,18 @@ def unescapeHTMLEntities(text):
       return text # leave as is
    return re.sub("&#?\w+;", fixup, text)
 
-class TextExtractor(HTMLParser.HTMLParser):
+IGNORED_TAGS = (
+    'script','style','option','ul','li','legend','object','noscript',
+    #'h1','h2','h3','h4','h5','h6',
+    'label', 'footer', 'nav', 'aside',
+)
+
+class TextExtractor(HTMLParser):
     """
     Attempts to extract the main body of text from an HTML document.
     
-    This is a messy task, and certain assumptions about the story text must be made:
+    This is a messy task, and certain assumptions about the story text
+    must be made:
     
     The story text:
     1. Is the largest block of text in the document.
@@ -84,7 +119,7 @@ class TextExtractor(HTMLParser.HTMLParser):
     pathBlur = 5
     
     def __init__(self):
-        HTMLParser.HTMLParser.__init__(self)
+        HTMLParser.__init__(self)
         self._ignore = False
         self._ignorePath = None
         self._lasttag = None
@@ -96,7 +131,7 @@ class TextExtractor(HTMLParser.HTMLParser):
     def handle_starttag(self, tag, attrs): 
         ignore0 = self._ignore
         tag = tag.lower()
-        if tag in ('script','style','option','ul','li','legend','object','noscript','label', 'footer', 'nav', 'aside'): # 'h1','h2','h3','h4','h5','h6',
+        if tag in IGNORED_TAGS:
             self._ignore = True
         attrd = dict(attrs)
         self._lasttag = tag.lower()
@@ -139,7 +174,8 @@ class TextExtractor(HTMLParser.HTMLParser):
             
             # Skip blocks of text beginning with 'copyright', which usually
             # indicates a copyright notice.
-            if data.strip().lower().startswith('copyright') and not self._ignore:
+            _data = data.strip().lower()
+            if _data.startswith('copyright') and not self._ignore:
                 self._ignore = True
                 self._ignorePath = tuple(self.path)
                 return
@@ -161,17 +197,17 @@ class TextExtractor(HTMLParser.HTMLParser):
                 
     def handle_charref(self, name):
         if name.isdigit():
-            text = unescapeHTMLEntities(u'&#'+name+';')
+            text = unescapeHTMLEntities(get_unicode('&#'+name+';'))
         else:
-            text = unescapeHTMLEntities(u'&'+name+';')
+            text = unescapeHTMLEntities(get_unicode('&'+name+';'))
         self.handle_data(text, entity=True)
                 
     def handle_entityref(self, name):
         self.handle_charref(name)
         
     def get_plaintext(self):
-        maxLen,maxPath,maxText,maxTextList = 0,None,'',[]
-        for path,textList in self.depthText.iteritems():
+        maxLen,maxPath,maxText,maxTextList = 0,(),'',[]
+        for path,textList in six.iteritems(self.depthText):
             
             # Strip off header segments, prefixed with a '#'.
             start = True
@@ -195,11 +231,17 @@ class TextExtractor(HTMLParser.HTMLParser):
                 text.append(t)
             text = reversed(text)
                 
-            text = u''.join(text).replace('#','')
-            text = text.replace(u'\xa0',' ')
-            text = text.replace(u'\u2019',"'")
-            text = re.sub("[\\n\\s]+", u" ", text).strip() # Compress whitespace.
-            maxLen,maxPath,maxText,maxTextList = max((maxLen,maxPath,maxText,maxTextList), (len(text),path,text,textList))
+            text = u('').join(text).replace('#','')
+            text = text.replace(u('\xa0'),' ')
+            text = text.replace(u('\u2019'),"'")
+            # Compress whitespace.
+            text = re.sub("[\\n\\s]+", u(' '), text).strip()
+#            print('old:',(maxLen,maxPath,maxText,maxTextList))
+#            print('new:',(len(text),path,text,textList))
+            maxLen,maxPath,maxText,maxTextList = max(
+                (maxLen,maxPath,maxText,maxTextList),
+                (len(text),path,text,textList),
+            )
         
         return maxText
     
@@ -207,15 +249,16 @@ class TextExtractor(HTMLParser.HTMLParser):
         # This is necessary because the underlying HTMLParser is buggy and
         # unreliable.
         try:
-            return HTMLParser.HTMLParser.parse_endtag(self, i)
-        except AttributeError, e:
+            return HTMLParser.parse_endtag(self, i)
+        except AttributeError:
             return -1
     
     def error(self,msg):
         # ignore all errors
         pass
 
-class HTMLParserNoFootNote(htmllib.HTMLParser):
+#class HTMLParserNoFootNote(htmllib.HTMLParser):
+class HTMLParserNoFootNote(HTMLParser):
     """
     Ignores link footnotes, image tags, and other useless things.
     """
@@ -246,7 +289,8 @@ class HTMLParserNoFootNote(htmllib.HTMLParser):
     def handle_data(self, data):
         if self.textPattern:
             data = ' '.join(self.textPattern.findall(data))
-        htmllib.HTMLParser.handle_data(self, data)
+        #htmllib.HTMLParser.handle_data(self, data)
+        HTMLParser.handle_data(self, data)
     
 def extractFromHTML(html):
     """
@@ -256,7 +300,7 @@ def extractFromHTML(html):
     assert isinstance(html, unicode)
     
     # Create memory file.
-    file = StringIO.StringIO()
+    file = StringIO()
     
     # Convert html to text.
     f = formatter.AbstractFormatter(formatter.DumbWriter(file))
@@ -265,11 +309,17 @@ def extractFromHTML(html):
     p.close()
     text = p.get_plaintext()
     
-    # Remove common junk patterns.
-    text = re.sub("\s[\(\),;\.\?\!](?=\s)", " ", text).strip() # Remove stand-alone punctuation.
-    text = re.sub("[\n\s]+", " ", text).strip() # Compress whitespace.
-    text = re.sub("\-{2,}", "", text).strip() # Remove consequetive dashes.
-    text = re.sub("\.{2,}", "", text).strip() # Remove consequetive periods.
+    # Remove stand-alone punctuation.
+    text = re.sub("\s[\(\),;\.\?\!](?=\s)", " ", text).strip()
+    
+    # Compress whitespace.
+    text = re.sub("[\n\s]+", " ", text).strip()
+    
+    # Remove consequetive dashes.
+    text = re.sub("\-{2,}", "", text).strip()
+    
+    # Remove consequetive periods.
+    text = re.sub("\.{2,}", "", text).strip()
     
     return text
 
@@ -279,10 +329,9 @@ def tidyHTML(dirtyHTML):
     """
     try:
         from tidylib import tidy_document
-    except ImportError, e:
-        raise ImportError, \
-            ("%s\nYou need to install pytidylib.\n" + 
-             "e.g. sudo pip install pytidylib") % e
+    except ImportError as e:
+        raise ImportError(("%s\nYou need to install pytidylib.\n" + 
+             "e.g. sudo pip install pytidylib") % e)
     options = {
         'output-xhtml':1,
         #add_xml_decl=1,#option in tidy but not pytidylib
@@ -300,7 +349,8 @@ def generate_key(s, pattern="%s.txt"):
     to format the output string
     """
     h = hashlib.sha1()
-    h.update(s)
+    #h.update(s)
+    h.update(s.encode('utf-8'))
     return pattern % h.hexdigest()
 
 def cache_get(cache_dir, cache_key, default=None):
@@ -338,8 +388,8 @@ def fetch(url, timeout=5, userAgent=None, only_mime_types=None):
     headers = {}
     if userAgent:
         headers['User-agent'] = str(userAgent)
-    request = urllib2.Request(url=url, headers=headers)
-    response = urllib2.urlopen(request, timeout=timeout)
+    request = Request(url=url, headers=headers)
+    response = urlopen(request, timeout=timeout)
     # Return nothing of the content isn't one of the target mime-types.
     if only_mime_types:
         assert isinstance(only_mime_types, (tuple, list))
@@ -358,27 +408,33 @@ def fetch(url, timeout=5, userAgent=None, only_mime_types=None):
     try:
         return response.read()
     except httplib.IncompleteRead as e:
-        # http://stackoverflow.com/questions/14149100/incompleteread-using-httplib
         # This should rarely happen, and is often the fault of the server
         # sending a malformed response.
         #TODO:just abandon all content and return '' instead?
         return e.partial
 
 def check_robotstxt(url, useCache, cache_dir, userAgent=None):
-    scheme, netloc, url_path, query, fragment = urllib2.urlparse.urlsplit(url)
-    robotstxt_url = urllib2.urlparse.urlunsplit((scheme, netloc, '/robots.txt', '', ''))
+    scheme, netloc, url_path, query, fragment = urlparse.urlsplit(url)
+    robotstxt_url = urlparse.urlunsplit((
+        scheme,
+        netloc,
+        '/robots.txt',
+        '',
+        '',
+    ))
     
     key = generate_key(robotstxt_url)
 
     robots_parser = robotparser.RobotFileParser()
     cached_content = cache_get(cache_dir, key) if useCache else ''
+    threshold = (time.time() - 86400 * 7)
 
-    if not cached_content or cache_info(cache_dir, key) < (time.time() - 86400 * 7):
+    if not cached_content or cache_info(cache_dir, key) < threshold:
         try:
             cached_content = fetch(robotstxt_url, userAgent=userAgent)
             if useCache:
                 cache_set(cache_dir, key, cached_content)
-        except urllib2.HTTPError as he:
+        except HTTPError as he:
             # this block mimics the behaviour in the robotparser.read() method
             if he.code in (401, 403):
                 robots_parser.disallow_all = True
@@ -388,8 +444,16 @@ def check_robotstxt(url, useCache, cache_dir, userAgent=None):
                 raise he
             cached_content = ''
 
+    try:
+        cached_content = str(cached_content, encoding='utf8')
+    except TypeError:
+        pass
     robots_parser.parse((x for x in cached_content.split('\n')))
-    default_useragent = (v for k, v in urllib2.OpenerDirector().addheaders if k == "User-agent").next()
+    default_useragent = None
+    for k, v in OpenerDirector().addheaders:
+        if k == "User-agent":
+            default_useragent = v
+            break
 
     return robots_parser.can_fetch(userAgent or default_useragent, url)
 
@@ -420,7 +484,8 @@ def extractFromURL(url,
     encoding := string
         The encoding of the page contents.
         If none given, it will attempt to guess the encoding.
-        See http://docs.python.org/howto/unicode.html for further info on Python Unicode and encoding support.
+        See http://docs.python.org/howto/unicode.html for further info
+        on Python Unicode and encoding support.
     filters := string
         Comma-delimited list of filters to apply before parsing.
     only_mime_types := list of strings
@@ -430,10 +495,9 @@ def extractFromURL(url,
     """
     try:
         import chardet
-    except ImportError, e:
-        raise ImportError, \
-            ("%s\nYou need to install chardet.\n" + \
-             "e.g. sudo pip install chardet") % e
+    except ImportError as e:
+        raise ImportError(("%s\nYou need to install chardet.\n" + \
+             "e.g. sudo pip install chardet") % e)
 
     if only_mime_types and isinstance(only_mime_types, basestring):
         only_mime_types = only_mime_types.split(',')
@@ -441,7 +505,8 @@ def extractFromURL(url,
     # Load url from cache if enabled.
     if cache:
         if not os.path.isdir(cacheDir):
-            os.makedirs(cacheDir, 0750)
+            cache_perms = 488 # 750 in octal, '-rwxr-x---'
+            os.makedirs(cacheDir, cache_perms)
 
         cache_key = generate_key(url)
         cached_content = cache_get(cacheDir, cache_key)
@@ -450,11 +515,11 @@ def extractFromURL(url,
 
     if not ignore_robotstxt:
         if not check_robotstxt(url, cache, cacheDir, userAgent=userAgent):
-            if verbose: print "Request denied by robots.txt"
+            if verbose: print("Request denied by robots.txt")
             return ''
 
     # Otherwise download the url.
-    if verbose: print 'Reading %s...' % url
+    if verbose: print('Reading %s...' % url)
     html = fetch(
         url,
         timeout=timeout,
@@ -463,14 +528,15 @@ def extractFromURL(url,
     if not html:
         return ''
 
-    # If no encoding guess given, then attempt to determine encoding automatically.
+    # If no encoding guess given, then attempt to determine
+    # encoding automatically.
     if not encoding:
         encoding_opinion = chardet.detect(html)
         encoding = encoding_opinion['encoding']
-        if verbose: print 'Using encoding %s.' % encoding
+        if verbose: print('Using encoding %s.' % encoding)
 
     # Save raw contents to cache if enabled.
-    if verbose: print 'Read %i characters.' % len(html)
+    if verbose: print('Read %i characters.' % len(html))
     if cache:
         raw_key = generate_key(url, "%s.raw")
         cache_set(cacheDir, raw_key, html)
@@ -484,7 +550,7 @@ def extractFromURL(url,
 
     # Clean up HTML.
     html = tidyHTML(html)
-    if verbose: print 'Extracted %i characters.' % len(html)
+    if verbose: print('Extracted %i characters.' % len(html))
     
     # Convert to Unicode.
     if not html:
@@ -506,7 +572,11 @@ def filter_remove_entities(text):
     return re.sub("&#[a-zA-Z]+", '', text)
 
 def get_filter_names():
-    return [k.replace('filter_','') for k,v in globals().iteritems() if k.startswith('filter_')]
+    return [
+        k.replace('filter_','')
+        for k,v in six.iteritems(globals())
+        if k.startswith('filter_')
+    ]
 
 def get_filter(name):
     return eval('filter_' + re.sub('[^a-zA-Z_]','',name))
@@ -515,33 +585,43 @@ if __name__ == '__main__':
     from optparse import OptionParser
     usage = "usage: %prog [options] <remote url or local filename>"
     parser = OptionParser(usage=usage)
-    parser.add_option("-e", "--encoding", dest="encoding",
-                      default=None,
-                      help="Manually specifies the encoding to use when interpreting the url.")
-    parser.add_option("-c", "--cache", dest="cache",
-                      action='store_true',
-                      default=False,
-                      help="Stores and loads data from cache.")
-    parser.add_option("-d", "--cacheDir", dest="cacheDir",
-                      default='_cache',
-                      help="The directory where cache files will be stored.")
-    parser.add_option("-u", "--userAgent", dest="userAgent",
-                      default=None,
-                      help="The user-agent to use when requesting URLs.")
-    parser.add_option("-f", "--filters", dest="filters",
-                      default=None,
-                      choices=get_filter_names(),
-                      help="A comma-delimited list of pre-processing filters to apply, one of [%s]." % '|'.join(get_filter_names()))
-    parser.add_option("-v", "--verbose", dest="verbose",
-                      action='store_true',
-                      default=False,
-                      help="Displays status messages.")
-    parser.add_option('-i', '--ignore-robotstxt', dest="ignore_robotstxt",
-                        default=False, action="store_true",
-                        help="Ignore robots.txt when fetching the content.")
-    parser.add_option('-m', '--only-mime-types', dest="only_mime_types",
-                        default=None,
-                        help="A comma-delimited list of mime-types to limit retrieval to.")
+    parser.add_option(
+        "-e", "--encoding", dest="encoding",
+        default=None,
+        help='Manually specifies the encoding to use when '
+            'interpreting the url.')
+    parser.add_option(
+        "-c", "--cache", dest="cache",
+        action='store_true',
+        default=False,
+        help="Stores and loads data from cache.")
+    parser.add_option(
+        "-d", "--cacheDir", dest="cacheDir",
+        default='_cache',
+        help="The directory where cache files will be stored.")
+    parser.add_option(
+        "-u", "--userAgent", dest="userAgent",
+        default=None,
+        help="The user-agent to use when requesting URLs.")
+    parser.add_option(
+        "-f", "--filters", dest="filters",
+        default=None,
+        choices=get_filter_names(),
+        help=('A comma-delimited list of pre-processing filters '
+            'to apply, one of [%s].') % '|'.join(get_filter_names()))
+    parser.add_option(
+        "-v", "--verbose", dest="verbose",
+        action='store_true',
+        default=False,
+        help="Displays status messages.")
+    parser.add_option(
+        '-i', '--ignore-robotstxt', dest="ignore_robotstxt",
+        default=False, action="store_true",
+        help="Ignore robots.txt when fetching the content.")
+    parser.add_option(
+        '-m', '--only-mime-types', dest="only_mime_types",
+        default=None,
+        help="A comma-delimited list of mime-types to limit retrieval to.")
 
     (options, args) = parser.parse_args()
 
@@ -550,4 +630,8 @@ if __name__ == '__main__':
         sys.exit()
 
     url = args[0]
-    print extractFromURL(url=url, **options.__dict__)
+    s = extractFromURL(url=url, **options.__dict__)
+    s = s.decode('utf8')
+    sys.stdout.write(s)
+    sys.stdout.write('\n')
+    
