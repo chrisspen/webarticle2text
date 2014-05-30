@@ -25,7 +25,7 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 """
 
-VERSION = (2, 0, 0)
+VERSION = (2, 0, 1)
 __version__ = '.'.join(map(str, VERSION))
 
 import os
@@ -466,7 +466,8 @@ def extractFromURL(url,
     userAgent=None,
     timeout=5,
     ignore_robotstxt=False,
-    only_mime_types=None):
+    only_mime_types=None,
+    raw=False):
     """
     Extracts text from a URL.
 
@@ -556,6 +557,8 @@ def extractFromURL(url,
     if not html:
         return ''
     html = unicode(html, encoding=encoding, errors='replace')
+    if raw:
+        return html
     
     # Extract text from HTML.
     res = extractFromHTML(html)
