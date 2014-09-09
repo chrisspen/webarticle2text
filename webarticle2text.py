@@ -25,7 +25,7 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 """
 
-VERSION = (2, 0, 1)
+VERSION = (2, 0, 2)
 __version__ = '.'.join(map(str, VERSION))
 
 import os
@@ -634,7 +634,7 @@ if __name__ == '__main__':
 
     url = args[0]
     s = extractFromURL(url=url, **options.__dict__)
-    s = s.decode('utf8')
-    sys.stdout.write(s)
+    s = s.decode('utf-8')
+    sys.stdout.write(s.encode('utf-8', errors='ignore'))
     sys.stdout.write('\n')
     
