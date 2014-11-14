@@ -1,7 +1,11 @@
 from distutils.core import setup
-import webarticle2text
+#import webarticle2text
+
+VERSION = (2, 0, 3)
+__version__ = '.'.join(map(str, VERSION))
+
 setup(name='webarticle2text',
-    version=webarticle2text.__version__,
+    version=__version__,
     description='Extracts the main article text from a webpage.',
     author='Chris Spencer',
     author_email='chrisspen@gmail.com',
@@ -9,7 +13,11 @@ setup(name='webarticle2text',
     license='LGPL License',
     py_modules=['webarticle2text'],
     scripts=['webarticle2text.py'],
-    install_requires=['pytidylib6', 'chardet', 'six'],
+    install_requires=[
+        'pytidylib6',
+        'chardet',
+        'six',
+    ],
     #https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers = [
         'Programming Language :: Python',
