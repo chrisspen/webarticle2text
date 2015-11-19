@@ -1,7 +1,7 @@
 from distutils.core import setup
 #import webarticle2text
 
-VERSION = (2, 0, 3)
+VERSION = (2, 0, 4)
 __version__ = '.'.join(map(str, VERSION))
 
 setup(name='webarticle2text',
@@ -13,11 +13,7 @@ setup(name='webarticle2text',
     license='LGPL License',
     py_modules=['webarticle2text'],
     scripts=['webarticle2text.py'],
-    install_requires=[
-        'pytidylib6',
-        'chardet',
-        'six',
-    ],
+    install_requires=open('pip-requirements.txt').readlines(),
     #https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers = [
         'Programming Language :: Python',

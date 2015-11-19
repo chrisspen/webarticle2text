@@ -25,7 +25,7 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 """
 
-VERSION = (2, 0, 3)
+VERSION = (2, 0, 4)
 __version__ = '.'.join(map(str, VERSION))
 
 import os
@@ -41,6 +41,7 @@ import re
 #import StringIO
 #import urllib2
 import hashlib
+import requests
 #import robotparser
 
 # http://pythonhosted.org/six/
@@ -116,7 +117,6 @@ class TextExtractor(HTMLParser):
     
     dom = []
     path = [0]
-    pathBlur = 5
     
     def __init__(self):
         HTMLParser.__init__(self)
@@ -127,6 +127,7 @@ class TextExtractor(HTMLParser):
         self.depthText = {} # path:text
         self.counting = 0
         self.lastN = 0
+        self.pathBlur = 5
         
     def handle_starttag(self, tag, attrs): 
         ignore0 = self._ignore
@@ -145,7 +146,7 @@ class TextExtractor(HTMLParser):
         elif 'id' in attrd and 'copyright' in attrd['id'].lower():
             self._ignore = True
         elif 'class' in attrd and 'footer' in attrd['class'].lower():
-            self.counting = max(self.counting,1)
+            self.counting = max(self.counting, 1)
             self._ignore = True
         elif 'class' in attrd and 'copyright' in attrd['class'].lower():
             self._ignore = True
@@ -206,8 +207,8 @@ class TextExtractor(HTMLParser):
         self.handle_charref(name)
         
     def get_plaintext(self):
-        maxLen,maxPath,maxText,maxTextList = 0,(),'',[]
-        for path,textList in six.iteritems(self.depthText):
+        maxLen, maxPath, maxText, maxTextList = 0, (), '', []
+        for path, textList in six.iteritems(self.depthText):
             
             # Strip off header segments, prefixed with a '#'.
             start = True
@@ -238,9 +239,9 @@ class TextExtractor(HTMLParser):
             text = re.sub("[\\n\\s]+", u(' '), text).strip()
 #            print('old:',(maxLen,maxPath,maxText,maxTextList))
 #            print('new:',(len(text),path,text,textList))
-            maxLen,maxPath,maxText,maxTextList = max(
-                (maxLen,maxPath,maxText,maxTextList),
-                (len(text),path,text,textList),
+            maxLen, maxPath, maxText, maxTextList = max(
+                (maxLen, maxPath, maxText, maxTextList),
+                (len(text), path, text, textList),
             )
         
         return maxText
@@ -292,7 +293,7 @@ class HTMLParserNoFootNote(HTMLParser):
         #htmllib.HTMLParser.handle_data(self, data)
         HTMLParser.handle_data(self, data)
     
-def extractFromHTML(html):
+def extractFromHTML(html, blur=5):
     """
     Extracts text from HTML content.
     """
@@ -305,6 +306,7 @@ def extractFromHTML(html):
     # Convert html to text.
     f = formatter.AbstractFormatter(formatter.DumbWriter(file))
     p = TextExtractor()
+    p.pathBlur = blur
     p.feed(html)
     p.close()
     text = p.get_plaintext()
@@ -388,8 +390,11 @@ def fetch(url, timeout=5, userAgent=None, only_mime_types=None):
     headers = {}
     if userAgent:
         headers['User-agent'] = str(userAgent)
-    request = Request(url=url, headers=headers)
-    response = urlopen(request, timeout=timeout)
+        
+    #request = Request(url=url, headers=headers)
+    #response = urlopen(request, timeout=timeout)
+    response = requests.get(url, headers=headers, timeout=timeout)
+    
     # Return nothing of the content isn't one of the target mime-types.
     if only_mime_types:
         assert isinstance(only_mime_types, (tuple, list))
@@ -406,7 +411,8 @@ def fetch(url, timeout=5, userAgent=None, only_mime_types=None):
         if ct not in only_mime_types:
             return
     try:
-        return response.read()
+        #return response.read()
+        return response.text
     except httplib.IncompleteRead as e:
         # This should rarely happen, and is often the fault of the server
         # sending a malformed response.
@@ -465,6 +471,7 @@ def extractFromURL(url,
     filters=None,
     userAgent=None,
     timeout=5,
+    blur=5,
     ignore_robotstxt=False,
     only_mime_types=None,
     raw=False):
@@ -494,6 +501,9 @@ def extractFromURL(url,
         If the mime-type of the raw-content retrieved does not match
         one of these, a value of None will be returned.
     """
+    
+    blur = int(blur)
+    
     try:
         import chardet
     except ImportError as e:
@@ -532,6 +542,8 @@ def extractFromURL(url,
     # If no encoding guess given, then attempt to determine
     # encoding automatically.
     if not encoding:
+        if isinstance(html, unicode):
+            html = html.encode('utf8', 'replace')
         encoding_opinion = chardet.detect(html)
         encoding = encoding_opinion['encoding']
         if verbose: print('Using encoding %s.' % encoding)
@@ -561,7 +573,7 @@ def extractFromURL(url,
         return html
     
     # Extract text from HTML.
-    res = extractFromHTML(html)
+    res = extractFromHTML(html, blur=blur)
     assert isinstance(res, unicode)
 
     # Save extracted text to cache if enabled.
@@ -625,6 +637,13 @@ if __name__ == '__main__':
         '-m', '--only-mime-types', dest="only_mime_types",
         default=None,
         help="A comma-delimited list of mime-types to limit retrieval to.")
+    parser.add_option(
+        "-b", "--blur", dest="blur",
+        default=5,
+        help="The number of DOM levels to include together when searching "
+            "for the largest single chunk of text. "
+            "A bigger number will find more text, but that text will morel likely be junk. "
+            "A smaller number will find less text, but that text is less likely to be junk.")
 
     (options, args) = parser.parse_args()
 
@@ -635,6 +654,9 @@ if __name__ == '__main__':
     url = args[0]
     s = extractFromURL(url=url, **options.__dict__)
     s = s.decode('utf-8')
-    sys.stdout.write(s.encode('utf-8', errors='ignore'))
+    try:
+        sys.stdout.write(s.encode('utf-8', errors='ignore'))
+    except TypeError:
+        sys.stdout.write(s)
     sys.stdout.write('\n')
     
