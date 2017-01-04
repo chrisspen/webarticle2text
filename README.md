@@ -1,10 +1,10 @@
 # Webarticle2Text - Extracts the main article text from a webpage.
 
-[![](https://img.shields.io/pypi/v/webarticle2text.svg)](https://pypi.python.org/pypi/webarticle2text)
+<a href="https://pypi.python.org/pypi/webarticle2text">![](https://img.shields.io/pypi/v/webarticle2text.svg)</a>
 
-[![Build Status](https://img.shields.io/travis/chrisspen/webarticle2text.svg?branch=master)](https://travis-ci.org/chrisspen/webarticle2text)
+<a href="https://travis-ci.org/chrisspen/webarticle2text">![Build Status](https://img.shields.io/travis/chrisspen/webarticle2text.svg?branch=master)</a>
 
-[![](https://pyup.io/repos/github/chrisspen/webarticle2text/shield.svg](https://pyup.io/repos/github/chrisspen/webarticle2text)
+<a href="https://pyup.io/repos/github/chrisspen/webarticle2text">![](https://pyup.io/repos/github/chrisspen/webarticle2text/shield.svg)</a>
 
 ## Overview
 -----------
