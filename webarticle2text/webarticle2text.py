@@ -24,9 +24,7 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 """
-
-VERSION = (2, 0, 4)
-__version__ = '.'.join(map(str, VERSION))
+from __future__ import print_function
 
 import os
 import sys
@@ -61,8 +59,8 @@ from six.moves.urllib.request import OpenerDirector, Request, urlopen
 from six.moves.urllib import robotparser
 
 u = six.u
-unicode = six.text_type
-unichr = six.unichr
+unicode = six.text_type # pylint: disable=redefined-builtin
+unichr = six.unichr # pylint: disable=redefined-builtin
 
 def get_unicode(text):
     try:
@@ -98,8 +96,7 @@ def unescapeHTMLEntities(text):
    return re.sub("&#?\w+;", fixup, text)
 
 IGNORED_TAGS = (
-    'script','style','option','ul','li','legend','object','noscript',
-    #'h1','h2','h3','h4','h5','h6',
+    'script', 'style', 'option', 'ul', 'li', 'legend', 'object', 'noscript',
     'label', 'footer', 'nav', 'aside',
 )
 
@@ -232,9 +229,9 @@ class TextExtractor(HTMLParser):
                 text.append(t)
             text = reversed(text)
                 
-            text = u('').join(text).replace('#','')
-            text = text.replace(u('\xa0'),' ')
-            text = text.replace(u('\u2019'),"'")
+            text = u('').join(text).replace('#', '')
+            text = text.replace(u('\xa0'), ' ')
+            text = text.replace(u('\u2019'), "'")
             # Compress whitespace.
             text = re.sub("[\\n\\s]+", u(' '), text).strip()
 #            print('old:',(maxLen,maxPath,maxText,maxTextList))
@@ -254,7 +251,7 @@ class TextExtractor(HTMLParser):
         except AttributeError:
             return -1
     
-    def error(self,msg):
+    def error(self, msg):
         # ignore all errors
         pass
 
@@ -264,7 +261,10 @@ class HTMLParserNoFootNote(HTMLParser):
     Ignores link footnotes, image tags, and other useless things.
     """
     
+    anchor = None
+    
     textPattern = None
+    
     path = [0]
     
     def handle_starttag(self, tag, attrs, *args):
@@ -297,14 +297,16 @@ def extractFromHTML(html, blur=5):
     """
     Extracts text from HTML content.
     """
-    html = unicode(html)
+    
+    #html = html.encode('utf-8', errors='ignore')
+    html = unicode(html, errors='ignore')
     assert isinstance(html, unicode)
     
     # Create memory file.
-    file = StringIO()
+    _file = StringIO()
     
     # Convert html to text.
-    f = formatter.AbstractFormatter(formatter.DumbWriter(file))
+    f = formatter.AbstractFormatter(formatter.DumbWriter(_file))
     p = TextExtractor()
     p.pathBlur = blur
     p.feed(html)
@@ -558,8 +560,8 @@ def extractFromURL(url,
     if filters:
         filter_names = map(str.strip, filters.split(','))
         for filter_name in filter_names:
-            filter = get_filter(filter_name)
-            html = filter(html)
+            fltr = get_filter(filter_name)
+            html = fltr(html)
 
     # Clean up HTML.
     html = tidyHTML(html)
@@ -588,13 +590,13 @@ def filter_remove_entities(text):
 
 def get_filter_names():
     return [
-        k.replace('filter_','')
-        for k,v in six.iteritems(globals())
+        k.replace('filter_', '')
+        for k, v in six.iteritems(globals())
         if k.startswith('filter_')
     ]
 
 def get_filter(name):
-    return eval('filter_' + re.sub('[^a-zA-Z_]','',name))
+    return globals()['filter_' + re.sub('[^a-zA-Z_]', '', name)]
 
 if __name__ == '__main__':
     from optparse import OptionParser

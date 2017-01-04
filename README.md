@@ -1,5 +1,10 @@
 # Webarticle2Text - Extracts the main article text from a webpage.
 
+[<img src="https://img.shields.io/pypi/v/webarticle2text.svg">](https://pypi.python.org/pypi/webarticle2text)
+
+[<img src="https://img.shields.io/travis/chrisspen/webarticle2text.svg?branch=master" alt="Build Status">](https://travis-ci.org/chrisspen/webarticle2text)
+
+[<img src="https://pyup.io/repos/github/chrisspen/webarticle2text/shield.svg">](https://pyup.io/repos/github/chrisspen/webarticle2text)
 
 ## Overview
 -----------
@@ -34,7 +39,7 @@ Then, simply install the package using pip:
 
 You can invoke the script either as a Python module:
 
-    import webarticle2text
+    from webarticle2text import webarticle2text
     print webarticle2text.extractFromURL("http://some/arbitrary/url")
 
 or as a standalone command line script:
@@ -44,6 +49,28 @@ or as a standalone command line script:
 Note, to use it from the command line, you'll need to ensure it has execute
 permission and is located in your PATH. On most platforms, this should
 automatically be done by setup.py.
+
+## Development
+
+Tests require the Python development headers to be installed, which you can install on Ubuntu with:
+
+    sudo apt-get install python-dev python3-dev python3.4-dev
+
+To run unittests across multiple Python versions, install:
+
+    sudo apt-get install python3.4-minimal python3.4-dev python3.5-minimal python3.5-dev
+
+To run all [tests](http://tox.readthedocs.org/en/latest/):
+
+    export TESTNAME=; tox
+
+To run tests for a specific environment (e.g. Python 2.7):
+    
+    export TESTNAME=; tox -e py27
+
+To run a specific test:
+    
+    export TESTNAME=.test_extract; tox -e py27
 
 ## History
 ----------
