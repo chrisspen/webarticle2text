@@ -512,7 +512,7 @@ def extractFromURL(url,
         raise ImportError(("%s\nYou need to install chardet.\n" + \
              "e.g. sudo pip install chardet") % e)
 
-    if only_mime_types and isinstance(only_mime_types, basestring):
+    if only_mime_types and isinstance(only_mime_types, six.text_type):
         only_mime_types = only_mime_types.split(',')
 
     # Load url from cache if enabled.
