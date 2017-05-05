@@ -5,6 +5,6 @@ html2text
 html5lib
 beautifulsoup4
 goose-extractor
-goose3
+goose3==3.0.5
 newspaper
 
