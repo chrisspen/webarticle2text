@@ -1,6 +1,6 @@
 python-Levenshtein
 fuzzywuzzy
-readability-lxml
+readability-lxml==0.6.2
 html2text
 html5lib
 beautifulsoup4
