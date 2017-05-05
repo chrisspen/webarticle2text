@@ -73,7 +73,7 @@ def get_unicode(text):
         return text
 
 def unescapeHTMLEntities(text):
-   """Removes HTML or XML character references 
+   """Removes HTML or XML character references
       and entities from a text string.
       keep &amp;, &gt;, &lt; in the source code.
    from Fredrik Lundh
@@ -107,18 +107,18 @@ IGNORED_TAGS = (
 class TextExtractor(HTMLParser):
     """
     Attempts to extract the main body of text from an HTML document.
-    
+
     This is a messy task, and certain assumptions about the story text
     must be made:
-    
+
     The story text:
     1. Is the largest block of text in the document.
     2. Sections all exist at the same relative depth.
     """
-    
+
     dom = []
     path = [0]
-    
+
     def __init__(self):
         HTMLParser.__init__(self)
         self._ignore = False
@@ -129,8 +129,8 @@ class TextExtractor(HTMLParser):
         self.counting = 0
         self.lastN = 0
         self.pathBlur = 5
-        
-    def handle_starttag(self, tag, attrs): 
+
+    def handle_starttag(self, tag, attrs):
         ignore0 = self._ignore
         tag = tag.lower()
         if tag in IGNORED_TAGS:
@@ -140,7 +140,7 @@ class TextExtractor(HTMLParser):
         self._depth += 1
         self.path += [self.lastN]
         self.lastN = 0
-        
+
         # Ignore footer garbage.
         if 'id' in attrd and 'footer' in attrd['id'].lower():
             self._ignore = True
@@ -151,29 +151,29 @@ class TextExtractor(HTMLParser):
             self._ignore = True
         elif 'class' in attrd and 'copyright' in attrd['class'].lower():
             self._ignore = True
-            
+
         # If we just started ignoring, then remember the initial path
         # so we can later know when to start un-ignoring again.
         if self._ignore and not ignore0:
             self._ignorePath = tuple(self.path)
-            
+
     def handle_startendtag(self, tag, attrs):
         pass
-    
+
     def handle_endtag(self, tag):
         if self._ignore and tuple(self.path) == self._ignorePath:
             self._ignore = False
-            
+
         self._depth -= 1
         if len(self.path):
             self.lastN = self.path.pop()
         else:
             self.lastN = 0
         self.lastN += 1
-        
+
     def handle_data(self, data, entity=False):
         if len(data) > 0 and not self._ignore:
-            
+
             # Skip blocks of text beginning with 'copyright', which usually
             # indicates a copyright notice.
             _data = data.strip().lower()
@@ -181,13 +181,13 @@ class TextExtractor(HTMLParser):
                 self._ignore = True
                 self._ignorePath = tuple(self.path)
                 return
-            
+
             if data:
-                
+
                 rpath = tuple(self.path[:-self.pathBlur])
                 self.depthText.setdefault(rpath, [])
                 self.depthText[rpath] += [data]
-                
+
                 # Allow one more layer below, to include
                 # text inside <i></i> or <b></b> tags.
                 # Unfortuantely, this will include a lot of crap
@@ -196,21 +196,21 @@ class TextExtractor(HTMLParser):
                 rpath2 = tuple(self.path[:-self.pathBlur-1])
                 self.depthText.setdefault(rpath2, [])
                 self.depthText[rpath2] += ['#'+data]
-                
+
     def handle_charref(self, name):
         if name.isdigit():
             text = unescapeHTMLEntities(get_unicode('&#'+name+';'))
         else:
             text = unescapeHTMLEntities(get_unicode('&'+name+';'))
         self.handle_data(text, entity=True)
-                
+
     def handle_entityref(self, name):
         self.handle_charref(name)
-        
+
     def get_plaintext(self):
         maxLen, maxPath, maxText, maxTextList = 0, (), '', []
         for path, textList in six.iteritems(self.depthText):
-            
+
             # Strip off header segments, prefixed with a '#'.
             start = True
             text = []
@@ -220,7 +220,7 @@ class TextExtractor(HTMLParser):
                         continue
                     start = False
                 text.append(t)
-                
+
             # Strip off footer segments, prefixed with a '#'.
             start = True
             textList = reversed(text)
@@ -232,7 +232,7 @@ class TextExtractor(HTMLParser):
                     start = False
                 text.append(t)
             text = reversed(text)
-                
+
             text = u('').join(text).replace('#', '')
             text = text.replace(u('\xa0'), ' ')
             text = text.replace(u('\u2019'), "'")
@@ -244,9 +244,9 @@ class TextExtractor(HTMLParser):
                 (maxLen, maxPath, maxText, maxTextList),
                 (len(text), path, text, textList),
             )
-        
+
         return maxText
-    
+
     def parse_endtag(self, i):
         # This is necessary because the underlying HTMLParser is buggy and
         # unreliable.
@@ -254,7 +254,7 @@ class TextExtractor(HTMLParser):
             return HTMLParser.parse_endtag(self, i)
         except AttributeError:
             return -1
-    
+
     def error(self, msg):
         # ignore all errors
         pass
@@ -264,13 +264,13 @@ class HTMLParserNoFootNote(HTMLParser):
     """
     Ignores link footnotes, image tags, and other useless things.
     """
-    
+
     anchor = None
-    
+
     textPattern = None
-    
+
     path = [0]
-    
+
     def handle_starttag(self, tag, attrs, *args):
         time.sleep(0.5)
         self.path += [0]
@@ -282,36 +282,36 @@ class HTMLParserNoFootNote(HTMLParser):
         self.path[-1] += 1
         if tag == 'script':
             pass
-    
+
     def anchor_end(self):
         if self.anchor:
             #self.handle_data("[%d]" % len(self.anchorlist))
             self.anchor = None
-            
+
     def handle_image(self, src, alt, *args):
         pass
-    
+
     def handle_data(self, data):
         if self.textPattern:
             data = ' '.join(self.textPattern.findall(data))
         #htmllib.HTMLParser.handle_data(self, data)
         HTMLParser.handle_data(self, data)
-    
+
 def extractFromHTML(html, blur=5):
     """
     Extracts text from HTML content.
     """
-    
+
     #html = html.encode('utf-8', errors='ignore')
     try:
         html = unicode(html, errors='ignore')
     except TypeError:
         pass
     assert isinstance(html, unicode)
-    
+
     # Create memory file.
     _file = StringIO()
-    
+
     # Convert html to text.
     f = formatter.AbstractFormatter(formatter.DumbWriter(_file))
     p = TextExtractor()
@@ -319,19 +319,19 @@ def extractFromHTML(html, blur=5):
     p.feed(html)
     p.close()
     text = p.get_plaintext()
-    
+
     # Remove stand-alone punctuation.
     text = re.sub("\s[\(\),;\.\?\!](?=\s)", " ", text).strip()
-    
+
     # Compress whitespace.
     text = re.sub("[\n\s]+", " ", text).strip()
-    
+
     # Remove consequetive dashes.
     text = re.sub("\-{2,}", "", text).strip()
-    
+
     # Remove consequetive periods.
     text = re.sub("\.{2,}", "", text).strip()
-    
+
     return text
 
 def tidyHTML(dirtyHTML):
@@ -341,7 +341,7 @@ def tidyHTML(dirtyHTML):
     try:
         from tidylib import tidy_document
     except ImportError as e:
-        raise ImportError(("%s\nYou need to install pytidylib.\n" + 
+        raise ImportError(("%s\nYou need to install pytidylib.\n" +
              "e.g. sudo pip install pytidylib") % e)
     options = {
         'output-xhtml':1,
@@ -369,11 +369,11 @@ def cache_get(cache_dir, cache_key, default=None):
     Returns the content of a cache item or the given default
     """
     filename = os.path.join(cache_dir, cache_key)
-    
+
     if os.path.isfile(filename):
         with open(filename, 'r') as f:
             return f.read()
-    
+
     return default
 
 def cache_set(cache_dir, cache_key, content):
@@ -381,7 +381,7 @@ def cache_set(cache_dir, cache_key, content):
     Creates a new cache file in the cache directory
     """
     filename = os.path.join(cache_dir, cache_key)
-    
+
     with open(filename, 'w') as f:
         f.write(content)
 
@@ -401,11 +401,11 @@ def fetch(url, timeout=5, userAgent=None, only_mime_types=None):
         headers['User-agent'] = str(userAgent)
     else:
         headers['User-agent'] = ua.random
-        
+
     #request = Request(url=url, headers=headers)
     #response = urlopen(request, timeout=timeout)
     response = requests.get(url, headers=headers, timeout=timeout)
-    
+
     # Return nothing of the content isn't one of the target mime-types.
     if only_mime_types:
         assert isinstance(only_mime_types, (tuple, list))
@@ -439,7 +439,7 @@ def check_robotstxt(url, useCache, cache_dir, userAgent=None):
         '',
         '',
     ))
-    
+
     key = generate_key(robotstxt_url)
 
     robots_parser = robotparser.RobotFileParser()
@@ -512,9 +512,9 @@ def extractFromURL(url,
         If the mime-type of the raw-content retrieved does not match
         one of these, a value of None will be returned.
     """
-    
+
     blur = int(blur)
-    
+
     try:
         import chardet
     except ImportError as e:
@@ -575,14 +575,14 @@ def extractFromURL(url,
     # Clean up HTML.
     html = tidyHTML(html)
     if verbose: print('Extracted %i characters.' % len(html))
-    
+
     # Convert to Unicode.
     if not html:
         return ''
     html = unicode(html, encoding=encoding, errors='replace')
     if raw:
         return html
-    
+
     # Extract text from HTML.
     res = extractFromHTML(html, blur=blur)
     assert isinstance(res, unicode)
@@ -670,4 +670,3 @@ if __name__ == '__main__':
     except TypeError:
         sys.stdout.write(s)
     sys.stdout.write('\n')
-    

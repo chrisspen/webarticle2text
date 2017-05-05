@@ -58,7 +58,7 @@ def mean(seq):
     return sum(seq)/float(len(seq))
 
 class Tests(unittest.TestCase):
-    
+
     def test_extract(self):
         with open('webarticle2text/fixtures/SAMPLE1.html', 'rb') as fin:
             raw = fin.read()
@@ -66,7 +66,7 @@ class Tests(unittest.TestCase):
         print(ret)
         self.assertTrue(ret.startswith('Python 3.6.0 is now available!'))
         self.assertTrue(ret.endswith('is now available for download on python.org.'))
-    
+
     def test_compare(self):
         data = defaultdict(lambda: defaultdict(list)) # {method: {metric: [data]}}
         samples = 5
@@ -89,28 +89,28 @@ class Tests(unittest.TestCase):
                 raw_fn = os.path.join(FIXTURE_DIR, 'compare/page%i.html' % i)
                 expected_fn = os.path.join(FIXTURE_DIR, 'compare/page%i.expected.txt' % i)
                 actual_fn = os.path.join(FIXTURE_DIR, 'compare/page%i.%s.actual.txt' % (i, method))
-                
+
                 #raw_text = open().read().encode('utf-8', errors='ignore')
                 raw_text = codecs.open(raw_fn, "r", "utf-8", errors='ignore').read()
                 #expected_text = open(expected_fn).read().encode('utf-8', errors='ignore')
                 expected_text = codecs.open(expected_fn, "r", "utf-8", errors='ignore').read()
-                
+
                 actual_text = method_func(raw_text)
                 actual_text = re.sub(r'[\n]+', ' ', actual_text, flags=re.M)
                 with open(actual_fn, 'wb')as fout:
                     fout.write(actual_text.encode('utf-8'))
-                
+
                 print('Calculating simple ratio...')
                 data[method]['simple_ratios'].append(fuzz.ratio(expected_text, actual_text))
-                
+
                 print('Calculating partial ratio...')
                 data[method]['partial_ratios'].append(fuzz.partial_ratio(expected_text, actual_text))
-                
-                print('Calculating levenshtein distance...') 
+
+                print('Calculating levenshtein distance...')
                 data[method]['levenshtein_distances'].append(distance(expected_text, actual_text))
 
                 gc.collect()
-        
+
         with open('compare.csv', 'w') as fout:
             print('Method,Mean Simple Ratio,Mean Partial Ratio,Mean Levenshtein Distance', file=fout)
             for method in data:
