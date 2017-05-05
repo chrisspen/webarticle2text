@@ -3,7 +3,7 @@ fuzzywuzzy
 readability-lxml
 html2text
 html5lib
-beautifulsoup4
+beautifulsoup4==4.5.3
 goose-extractor
 goose3
 newspaper
