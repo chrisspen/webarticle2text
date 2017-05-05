@@ -4,7 +4,7 @@ readability-lxml
 html2text
 html5lib
 beautifulsoup4
-goose-extractor
+goose-extractor==1.0.25
 goose3
 newspaper
 
