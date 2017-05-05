@@ -1,7 +1,7 @@
 python-Levenshtein
 fuzzywuzzy
 readability-lxml
-html2text
+html2text==2016.9.19
 html5lib
 beautifulsoup4
 goose-extractor
