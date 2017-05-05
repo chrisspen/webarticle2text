@@ -1,4 +1,4 @@
 include README.md
 include LICENSE
-include pip-requirements.txt
+include requirements.txt
 recursive-include webarticle2text/fixtures *

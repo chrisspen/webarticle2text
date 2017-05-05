@@ -11,7 +11,7 @@ setup(name='webarticle2text',
     license='LGPL License',
     packages=find_packages(),
     scripts=['webarticle2text/webarticle2text.py'],
-    install_requires=open('pip-requirements.txt').readlines(),
+    install_requires=open('requirements.txt').readlines(),
     #https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
         'Programming Language :: Python',

@@ -58,6 +58,10 @@ from six.moves.urllib.error import HTTPError
 from six.moves.urllib.request import OpenerDirector, Request, urlopen
 from six.moves.urllib import robotparser
 
+from fake_useragent import UserAgent
+
+ua = UserAgent()
+
 u = six.u
 unicode = six.text_type # pylint: disable=redefined-builtin
 unichr = six.unichr # pylint: disable=redefined-builtin
@@ -299,7 +303,10 @@ def extractFromHTML(html, blur=5):
     """
     
     #html = html.encode('utf-8', errors='ignore')
-    html = unicode(html, errors='ignore')
+    try:
+        html = unicode(html, errors='ignore')
+    except TypeError:
+        pass
     assert isinstance(html, unicode)
     
     # Create memory file.
@@ -392,6 +399,8 @@ def fetch(url, timeout=5, userAgent=None, only_mime_types=None):
     headers = {}
     if userAgent:
         headers['User-agent'] = str(userAgent)
+    else:
+        headers['User-agent'] = ua.random
         
     #request = Request(url=url, headers=headers)
     #response = urlopen(request, timeout=timeout)
