@@ -5,7 +5,7 @@
 ## Overview
 -----------
 
-<div style='border:1px solid red;">
+<div style="border:1px solid red;">
 This project is obsolete and now only serves as a reference. I recommend you instead use to [newspaper](https://github.com/codelucas/newspaper), which is an order-of-magnitude more accurate.
 
 Please see `compare.csv` for a performance comparison of several similar tools.
