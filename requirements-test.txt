@@ -1,5 +1,5 @@
 python-Levenshtein
-fuzzywuzzy
+fuzzywuzzy==0.15.0
 readability-lxml
 html2text
 html5lib
