@@ -6,5 +6,5 @@ html5lib
 beautifulsoup4
 goose-extractor
 goose3
-newspaper
+newspaper==0.1.0.0
 
